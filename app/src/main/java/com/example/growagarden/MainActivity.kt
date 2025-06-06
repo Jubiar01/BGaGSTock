@@ -7,15 +7,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigationrail.NavigationRailView
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import com.google.android.material.snackbar.Snackbar
 import com.example.growagarden.fragments.*
 import com.example.growagarden.viewmodel.GardenViewModel
 import com.example.growagarden.utils.NotificationPermissionHelper
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -34,6 +37,7 @@ class MainActivity : AppCompatActivity() {
         setupViews()
         setupViewPager()
         setupRefreshButton()
+        observeAutoRefreshStatus()
         requestNotificationPermission()
     }
 
@@ -79,8 +83,37 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupRefreshButton() {
         fabRefresh.setOnClickListener {
-            viewModel.refreshData()
+            viewModel.forceRefresh()
+            showRefreshFeedback()
         }
+
+        fabRefresh.setOnLongClickListener {
+            viewModel.refreshData()
+            Snackbar.make(fabRefresh, "Manual refresh triggered", Snackbar.LENGTH_SHORT).show()
+            true
+        }
+    }
+
+    private fun observeAutoRefreshStatus() {
+        lifecycleScope.launch {
+            viewModel.autoRefreshStatus.collect { status ->
+                if (status.contains("Auto-refreshing") || status.contains("Force refreshing")) {
+                    fabRefresh.isEnabled = false
+                    fabRefresh.alpha = 0.6f
+                } else {
+                    fabRefresh.isEnabled = true
+                    fabRefresh.alpha = 1.0f
+                }
+            }
+        }
+    }
+
+    private fun showRefreshFeedback() {
+        Snackbar.make(
+            findViewById(android.R.id.content),
+            "🚀 Force refresh activated! Getting latest stocks...",
+            Snackbar.LENGTH_SHORT
+        ).show()
     }
 
     private fun requestNotificationPermission() {
@@ -100,9 +133,20 @@ class MainActivity : AppCompatActivity() {
             NotificationPermissionHelper.NOTIFICATION_PERMISSION_REQUEST_CODE -> {
                 if (grantResults.isNotEmpty() && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
                     NotificationPermissionHelper.showPermissionDeniedDialog(this)
+                } else {
+                    Snackbar.make(
+                        findViewById(android.R.id.content),
+                        "✅ Notifications enabled! You'll get alerts for favorite items.",
+                        Snackbar.LENGTH_LONG
+                    ).show()
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.forceRefresh()
     }
 
     private fun setupTabContent(tab: TabLayout.Tab, position: Int) {

@@ -7,25 +7,28 @@ import com.example.growagarden.data.*
 import com.example.growagarden.repository.GardenRepository
 import com.example.growagarden.favorites.FavoritesManager
 import com.example.growagarden.notifications.NotificationService
+import com.example.growagarden.service.AutoRefreshService
+import com.example.growagarden.lifecycle.AppLifecycleManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
 
 data class UiState(
     val isLoading: Boolean = false,
     val stockInfo: StockInfo? = null,
     val weatherData: WeatherResponse? = null,
     val resetTimes: ResetTimes? = null,
-    val error: String? = null
+    val error: String? = null,
+    val lastUpdateTime: Long = 0L
 )
 
 class GardenViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = GardenRepository()
     private val favoritesManager = FavoritesManager.getInstance(application)
     private val notificationService = NotificationService(application)
+    private val lifecycleManager = AppLifecycleManager(application)
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
@@ -33,60 +36,98 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    private var timerJob: Job? = null
-    private var fastRefreshJob: Job? = null
-    private var previousResetTimes: ResetTimes? = null
+    private val _autoRefreshStatus = MutableStateFlow("Starting...")
+    val autoRefreshStatus: StateFlow<String> = _autoRefreshStatus.asStateFlow()
+
     private var lastStockInfo: StockInfo? = null
+    private var autoRefreshService: AutoRefreshService? = null
+    private var refreshCount = 0
 
     init {
+        setupAutoRefresh()
         loadData()
-        startResetTimerUpdates()
     }
 
-    private fun startResetTimerUpdates() {
-        timerJob?.cancel()
-        timerJob = viewModelScope.launch {
-            while (true) {
-                calculateResetTimes()
-                delay(1000L)
+    private fun setupAutoRefresh() {
+        autoRefreshService = AutoRefreshService(
+            context = getApplication(),
+            onRefreshNeeded = {
+                performAutoRefresh()
+            },
+            onResetTimesUpdate = { resetTimes ->
+                _uiState.value = _uiState.value.copy(resetTimes = resetTimes)
             }
+        )
+        autoRefreshService?.start()
+        _autoRefreshStatus.value = "Auto-refresh active"
+    }
+
+    private suspend fun performAutoRefresh() {
+        try {
+            refreshCount++
+            _autoRefreshStatus.value = "Auto-refreshing... (#$refreshCount)"
+
+            val stockResult = repository.getStockData()
+            val weatherResult = repository.getWeatherData()
+
+            val stockInfo = if (stockResult.isSuccess) {
+                val info = stockResult.getOrNull()
+                info?.let { addFavoriteStatus(it) }
+            } else null
+
+            val weatherData = if (weatherResult.isSuccess) weatherResult.getOrNull() else null
+
+            stockInfo?.let { newStockInfo ->
+                if (lastStockInfo != null && hasNewStocks(lastStockInfo!!, newStockInfo)) {
+                    if (!lifecycleManager.isInBackground()) {
+                        notificationService.checkForFavoriteItems(newStockInfo)
+                    }
+                }
+                lastStockInfo = newStockInfo
+            }
+
+            val error = when {
+                stockResult.isFailure && weatherResult.isFailure -> "Auto-refresh failed"
+                stockResult.isFailure -> "Stock data failed"
+                weatherResult.isFailure -> "Weather data failed"
+                else -> null
+            }
+
+            _uiState.value = _uiState.value.copy(
+                stockInfo = stockInfo,
+                weatherData = weatherData,
+                error = error,
+                lastUpdateTime = System.currentTimeMillis()
+            )
+
+            _autoRefreshStatus.value = "Last updated: ${getTimeAgo()}"
+
+        } catch (e: Exception) {
+            _autoRefreshStatus.value = "Auto-refresh error, retrying..."
+            delay(5000L)
         }
     }
 
-    private fun startFastRefresh() {
-        fastRefreshJob?.cancel()
-        fastRefreshJob = viewModelScope.launch {
-            repeat(10) {
-                if (!_isRefreshing.value && !_uiState.value.isLoading) {
-                    loadDataSilently()
-                }
-                delay(2000L)
-            }
+    private fun getTimeAgo(): String {
+        val now = System.currentTimeMillis()
+        val lastUpdate = _uiState.value.lastUpdateTime
+        val diffSeconds = (now - lastUpdate) / 1000
 
-            repeat(5) {
-                if (!_isRefreshing.value && !_uiState.value.isLoading) {
-                    loadDataSilently()
-                }
-                delay(5000L)
-            }
+        return when {
+            diffSeconds < 60 -> "just now"
+            diffSeconds < 3600 -> "${diffSeconds / 60}m ago"
+            else -> "${diffSeconds / 3600}h ago"
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        timerJob?.cancel()
-        fastRefreshJob?.cancel()
+        autoRefreshService?.stop()
     }
 
     fun loadData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            performDataLoad()
-        }
-    }
-
-    private fun loadDataSilently() {
-        viewModelScope.launch {
             performDataLoad()
         }
     }
@@ -103,6 +144,13 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
 
             val weatherData = if (weatherResult.isSuccess) weatherResult.getOrNull() else null
 
+            stockInfo?.let { newStockInfo ->
+                if (lastStockInfo != null && hasNewStocks(lastStockInfo!!, newStockInfo)) {
+                    notificationService.checkForFavoriteItems(newStockInfo)
+                }
+                lastStockInfo = newStockInfo
+            }
+
             val error = when {
                 stockResult.isFailure && weatherResult.isFailure ->
                     "Failed to load stock and weather data"
@@ -111,18 +159,12 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 else -> null
             }
 
-            stockInfo?.let { newStockInfo ->
-                if (lastStockInfo != null && hasNewStocks(lastStockInfo!!, newStockInfo)) {
-                    notificationService.checkForFavoriteItems(newStockInfo)
-                }
-                lastStockInfo = newStockInfo
-            }
-
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
                 stockInfo = stockInfo,
                 weatherData = weatherData,
-                error = error
+                error = error,
+                lastUpdateTime = System.currentTimeMillis()
             )
         } catch (e: Exception) {
             _uiState.value = _uiState.value.copy(
@@ -161,27 +203,8 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
             _isRefreshing.value = true
             performDataLoad()
             _isRefreshing.value = false
+            autoRefreshService?.triggerFastRefresh()
         }
-    }
-
-    fun calculateResetTimes() {
-        val newResetTimes = repository.calculateResetTimes()
-
-        previousResetTimes?.let { previous ->
-            val shouldAutoRefresh =
-                (previous.gear != "⚡ Resetting now!" && newResetTimes.gear == "⚡ Resetting now!") ||
-                        (previous.egg != "⚡ Resetting now!" && newResetTimes.egg == "⚡ Resetting now!") ||
-                        (previous.honey != "⚡ Resetting now!" && newResetTimes.honey == "⚡ Resetting now!") ||
-                        (previous.cosmetic != "⚡ Resetting now!" && newResetTimes.cosmetic == "⚡ Resetting now!")
-
-            if (shouldAutoRefresh && !_uiState.value.isLoading && !_isRefreshing.value) {
-                refreshData()
-                startFastRefresh()
-            }
-        }
-
-        previousResetTimes = newResetTimes
-        _uiState.value = _uiState.value.copy(resetTimes = newResetTimes)
     }
 
     fun toggleFavorite(item: StockItem, stockType: StockType) {
@@ -191,8 +214,18 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
             favoritesManager.addFavorite(item.name, stockType)
         }
 
+        lifecycleManager.onFavoritesChanged()
+
         _uiState.value.stockInfo?.let { stockInfo ->
             _uiState.value = _uiState.value.copy(stockInfo = addFavoriteStatus(stockInfo))
+        }
+    }
+
+    fun forceRefresh() {
+        viewModelScope.launch {
+            _autoRefreshStatus.value = "Force refreshing..."
+            autoRefreshService?.triggerFastRefresh()
+            performAutoRefresh()
         }
     }
 

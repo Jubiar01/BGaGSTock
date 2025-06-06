@@ -31,6 +31,7 @@ class AllStocksFragment : Fragment() {
     private lateinit var stockCategoryAdapter: StockCategoryAdapter
     private lateinit var totalItemsText: MaterialTextView
     private lateinit var favoritesCountText: MaterialTextView
+    private lateinit var autoRefreshStatusText: MaterialTextView
     private lateinit var weatherCard: MaterialCardView
     private lateinit var weatherText: MaterialTextView
     private lateinit var bonusText: MaterialTextView
@@ -62,6 +63,7 @@ class AllStocksFragment : Fragment() {
         progressBar = view.findViewById(R.id.progressBar)
         totalItemsText = view.findViewById(R.id.totalItemsText)
         favoritesCountText = view.findViewById(R.id.favoritesCountText)
+        autoRefreshStatusText = view.findViewById(R.id.autoRefreshStatusText)
         weatherCard = view.findViewById(R.id.weatherCard)
         weatherText = view.findViewById(R.id.weatherText)
         bonusText = view.findViewById(R.id.bonusText)
@@ -143,6 +145,15 @@ class AllStocksFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.isRefreshing.collect { isRefreshing ->
                     swipeRefresh.isRefreshing = isRefreshing
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.autoRefreshStatus.collect { status ->
+                    autoRefreshStatusText.text = "🔄 $status"
+                    autoRefreshStatusText.visibility = View.VISIBLE
                 }
             }
         }
