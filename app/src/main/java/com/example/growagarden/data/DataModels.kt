@@ -29,9 +29,7 @@ data class StockInfo(
     @SerializedName("honeyStock")
     val honeyStock: List<StockItem> = emptyList(),
     @SerializedName("nightStock")
-    val nightStock: List<StockItem> = emptyList(),
-    @SerializedName("bloodStock")
-    val bloodStock: List<StockItem> = emptyList()
+    val nightStock: List<StockItem> = emptyList()
 )
 
 data class StockItem(
@@ -44,7 +42,14 @@ data class StockItem(
     @SerializedName("price")
     val price: Int? = null,
     @SerializedName("rarity")
-    val rarity: String? = null
+    val rarity: String? = null,
+    var isFavorite: Boolean = false
+)
+
+data class FavoriteItem(
+    val name: String,
+    val stockType: StockType,
+    val dateAdded: Long = System.currentTimeMillis()
 )
 
 data class WeatherResponse(
@@ -70,6 +75,5 @@ enum class StockType(val displayName: String, val emoji: String) {
     COSMETICS("Cosmetics", "💄"),
     HONEY("Honey", "🍯"),
     NIGHT("Night", "🌙"),
-    BLOOD("Blood", "🩸"),
     ALL("All Stocks", "📊")
 }

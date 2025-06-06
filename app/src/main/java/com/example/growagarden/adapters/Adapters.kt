@@ -9,11 +9,15 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textview.MaterialTextView
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.snackbar.Snackbar
 import com.example.growagarden.R
 import com.example.growagarden.data.StockItem
 import com.example.growagarden.data.StockType
 
-class StockItemAdapter : ListAdapter<StockItem, StockItemAdapter.StockItemViewHolder>(StockItemDiffCallback()) {
+class StockItemAdapter(
+    private val onItemLongClick: ((StockItem, StockType) -> Unit)? = null,
+    private val stockType: StockType? = null
+) : ListAdapter<StockItem, StockItemAdapter.StockItemViewHolder>(StockItemDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StockItemViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -25,11 +29,12 @@ class StockItemAdapter : ListAdapter<StockItem, StockItemAdapter.StockItemViewHo
         holder.bind(getItem(position))
     }
 
-    class StockItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    inner class StockItemViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val card: MaterialCardView = itemView.findViewById(R.id.stockCard)
         private val nameText: MaterialTextView = itemView.findViewById(R.id.stockName)
         private val valueText: MaterialTextView = itemView.findViewById(R.id.stockValue)
         private val priceText: MaterialTextView = itemView.findViewById(R.id.stockPrice)
+        private val favoriteIcon: MaterialTextView = itemView.findViewById(R.id.favoriteIcon)
 
         fun bind(item: StockItem) {
             nameText.text = item.name
@@ -42,6 +47,8 @@ class StockItemAdapter : ListAdapter<StockItem, StockItemAdapter.StockItemViewHo
                 priceText.visibility = View.GONE
             }
 
+            favoriteIcon.visibility = if (item.isFavorite) View.VISIBLE else View.GONE
+
             item.rarity?.let { rarity ->
                 card.strokeColor = when (rarity.lowercase()) {
                     "common" -> itemView.context.getColor(R.color.rarity_common)
@@ -51,7 +58,17 @@ class StockItemAdapter : ListAdapter<StockItem, StockItemAdapter.StockItemViewHo
                     "legendary" -> itemView.context.getColor(R.color.rarity_legendary)
                     else -> itemView.context.getColor(R.color.md_theme_outline)
                 }
-                card.strokeWidth = 2
+                card.strokeWidth = if (item.isFavorite) 4 else 2
+            }
+
+            card.setOnLongClickListener {
+                stockType?.let { type ->
+                    onItemLongClick?.invoke(item, type)
+                    Snackbar.make(itemView,
+                        if (item.isFavorite) "Removed from favorites" else "Added to favorites",
+                        Snackbar.LENGTH_SHORT).show()
+                }
+                true
             }
         }
     }
@@ -67,7 +84,9 @@ class StockItemAdapter : ListAdapter<StockItem, StockItemAdapter.StockItemViewHo
     }
 }
 
-class StockCategoryAdapter : ListAdapter<Pair<StockType, List<StockItem>>, StockCategoryAdapter.CategoryViewHolder>(CategoryDiffCallback()) {
+class StockCategoryAdapter(
+    private val onItemLongClick: ((StockItem, StockType) -> Unit)? = null
+) : ListAdapter<Pair<StockType, List<StockItem>>, StockCategoryAdapter.CategoryViewHolder>(CategoryDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CategoryViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -79,24 +98,26 @@ class StockCategoryAdapter : ListAdapter<Pair<StockType, List<StockItem>>, Stock
         holder.bind(getItem(position))
     }
 
-    class CategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    inner class CategoryViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val titleText: MaterialTextView = itemView.findViewById(R.id.categoryTitle)
         private val countText: MaterialTextView = itemView.findViewById(R.id.categoryCount)
+        private val favoriteCountText: MaterialTextView = itemView.findViewById(R.id.favoriteCount)
         private val recyclerView: RecyclerView = itemView.findViewById(R.id.categoryRecyclerView)
         private val emptyText: MaterialTextView = itemView.findViewById(R.id.emptyText)
-
-        private val adapter = StockItemAdapter()
-
-        init {
-            recyclerView.adapter = adapter
-            recyclerView.layoutManager = LinearLayoutManager(itemView.context, LinearLayoutManager.HORIZONTAL, false)
-        }
 
         fun bind(category: Pair<StockType, List<StockItem>>) {
             val (stockType, items) = category
 
             titleText.text = "${stockType.emoji} ${stockType.displayName}"
             countText.text = "${items.size} items"
+
+            val favoriteCount = items.count { it.isFavorite }
+            if (favoriteCount > 0) {
+                favoriteCountText.visibility = View.VISIBLE
+                favoriteCountText.text = "⭐ $favoriteCount"
+            } else {
+                favoriteCountText.visibility = View.GONE
+            }
 
             if (items.isEmpty()) {
                 recyclerView.visibility = View.GONE
@@ -105,6 +126,10 @@ class StockCategoryAdapter : ListAdapter<Pair<StockType, List<StockItem>>, Stock
             } else {
                 recyclerView.visibility = View.VISIBLE
                 emptyText.visibility = View.GONE
+
+                val adapter = StockItemAdapter(onItemLongClick, stockType)
+                recyclerView.adapter = adapter
+                recyclerView.layoutManager = LinearLayoutManager(itemView.context, LinearLayoutManager.HORIZONTAL, false)
                 adapter.submitList(items)
             }
         }

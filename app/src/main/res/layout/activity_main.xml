@@ -17,6 +17,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
             app:title="🌾 Grow A Garden Tracker"
             app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineSmall"
             style="@style/Widget.Material3.Toolbar" />

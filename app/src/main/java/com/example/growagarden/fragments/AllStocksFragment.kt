@@ -30,6 +30,7 @@ class AllStocksFragment : Fragment() {
     private lateinit var progressBar: LinearProgressIndicator
     private lateinit var stockCategoryAdapter: StockCategoryAdapter
     private lateinit var totalItemsText: MaterialTextView
+    private lateinit var favoritesCountText: MaterialTextView
     private lateinit var weatherCard: MaterialCardView
     private lateinit var weatherText: MaterialTextView
     private lateinit var bonusText: MaterialTextView
@@ -60,6 +61,7 @@ class AllStocksFragment : Fragment() {
         recyclerView = view.findViewById(R.id.recyclerViewStocks)
         progressBar = view.findViewById(R.id.progressBar)
         totalItemsText = view.findViewById(R.id.totalItemsText)
+        favoritesCountText = view.findViewById(R.id.favoritesCountText)
         weatherCard = view.findViewById(R.id.weatherCard)
         weatherText = view.findViewById(R.id.weatherText)
         bonusText = view.findViewById(R.id.bonusText)
@@ -75,7 +77,9 @@ class AllStocksFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        stockCategoryAdapter = StockCategoryAdapter()
+        stockCategoryAdapter = StockCategoryAdapter { item, stockType ->
+            viewModel.toggleFavorite(item, stockType)
+        }
         recyclerView.apply {
             adapter = stockCategoryAdapter
             layoutManager = LinearLayoutManager(requireContext())
@@ -96,12 +100,19 @@ class AllStocksFragment : Fragment() {
                             Pair(StockType.EGGS, stockInfo.eggStock),
                             Pair(StockType.COSMETICS, stockInfo.cosmeticsStock),
                             Pair(StockType.HONEY, stockInfo.honeyStock),
-                            Pair(StockType.NIGHT, stockInfo.nightStock),
-                            Pair(StockType.BLOOD, stockInfo.bloodStock)
+                            Pair(StockType.NIGHT, stockInfo.nightStock)
                         )
 
                         stockCategoryAdapter.submitList(categories)
                         totalItemsText.text = "📊 ${viewModel.getTotalItemCount()} total items"
+
+                        val favoritesCount = viewModel.getFavoritesCount()
+                        if (favoritesCount > 0) {
+                            favoritesCountText.visibility = View.VISIBLE
+                            favoritesCountText.text = "⭐ $favoritesCount favorites"
+                        } else {
+                            favoritesCountText.visibility = View.GONE
+                        }
                     }
 
                     uiState.weatherData?.let { weather ->

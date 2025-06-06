@@ -30,6 +30,18 @@
                 android:textStyle="bold" />
 
             <com.google.android.material.textview.MaterialTextView
+                android:id="@+id/favoriteCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                android:textColor="?attr/colorPrimary"
+                android:background="?attr/colorPrimaryContainer"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:layout_marginEnd="8dp"
+                android:visibility="gone" />
+
+            <com.google.android.material.textview.MaterialTextView
                 android:id="@+id/categoryCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -37,8 +49,7 @@
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:background="?attr/colorSurfaceVariant"
                 android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp"
-                android:layout_marginStart="8dp" />
+                android:paddingVertical="4dp" />
 
         </LinearLayout>
 

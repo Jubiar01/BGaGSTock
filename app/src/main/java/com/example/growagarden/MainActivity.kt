@@ -1,5 +1,6 @@
 package com.example.growagarden
 
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +15,7 @@ import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import com.example.growagarden.fragments.*
 import com.example.growagarden.viewmodel.GardenViewModel
+import com.example.growagarden.utils.NotificationPermissionHelper
 
 class MainActivity : AppCompatActivity() {
 
@@ -32,6 +34,7 @@ class MainActivity : AppCompatActivity() {
         setupViews()
         setupViewPager()
         setupRefreshButton()
+        requestNotificationPermission()
     }
 
     private fun setupViews() {
@@ -80,6 +83,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun requestNotificationPermission() {
+        if (!NotificationPermissionHelper.hasNotificationPermission(this)) {
+            NotificationPermissionHelper.requestNotificationPermission(this)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        when (requestCode) {
+            NotificationPermissionHelper.NOTIFICATION_PERMISSION_REQUEST_CODE -> {
+                if (grantResults.isNotEmpty() && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                    NotificationPermissionHelper.showPermissionDeniedDialog(this)
+                }
+            }
+        }
+    }
+
     private fun setupTabContent(tab: TabLayout.Tab, position: Int) {
         when (position) {
             0 -> {
@@ -111,10 +136,6 @@ class MainActivity : AppCompatActivity() {
                 tab.setIcon(R.drawable.ic_night)
             }
             7 -> {
-                tab.text = "Blood"
-                tab.setIcon(R.drawable.ic_blood)
-            }
-            8 -> {
                 tab.text = "Weather"
                 tab.setIcon(R.drawable.ic_weather)
             }
@@ -130,8 +151,7 @@ class MainActivity : AppCompatActivity() {
             R.id.nav_cosmetics -> 4
             R.id.nav_honey -> 5
             R.id.nav_night -> 6
-            R.id.nav_blood -> 7
-            R.id.nav_weather -> 8
+            R.id.nav_weather -> 7
             else -> -1
         }
     }
@@ -145,8 +165,7 @@ class MainActivity : AppCompatActivity() {
             4 -> R.id.nav_cosmetics
             5 -> R.id.nav_honey
             6 -> R.id.nav_night
-            7 -> R.id.nav_blood
-            8 -> R.id.nav_weather
+            7 -> R.id.nav_weather
             else -> -1
         }
     }
@@ -154,7 +173,7 @@ class MainActivity : AppCompatActivity() {
     private inner class GardenPagerAdapter(fragmentActivity: FragmentActivity) :
         FragmentStateAdapter(fragmentActivity) {
 
-        override fun getItemCount(): Int = 9
+        override fun getItemCount(): Int = 8
 
         override fun createFragment(position: Int): Fragment {
             return when (position) {
@@ -165,8 +184,7 @@ class MainActivity : AppCompatActivity() {
                 4 -> StockFragment.newInstance("cosmetics")
                 5 -> StockFragment.newInstance("honey")
                 6 -> StockFragment.newInstance("night")
-                7 -> StockFragment.newInstance("blood")
-                8 -> WeatherFragment()
+                7 -> WeatherFragment()
                 else -> AllStocksFragment()
             }
         }

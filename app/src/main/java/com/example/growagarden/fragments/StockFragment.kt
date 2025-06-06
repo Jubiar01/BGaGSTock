@@ -29,6 +29,7 @@ class StockFragment : Fragment() {
     private lateinit var progressBar: LinearProgressIndicator
     private lateinit var emptyView: MaterialTextView
     private lateinit var headerText: MaterialTextView
+    private lateinit var favoriteHintText: MaterialTextView
     private lateinit var stockItemAdapter: StockItemAdapter
 
     private var stockType: StockType = StockType.GEAR
@@ -56,7 +57,6 @@ class StockFragment : Fragment() {
                 "cosmetics" -> StockType.COSMETICS
                 "honey" -> StockType.HONEY
                 "night" -> StockType.NIGHT
-                "blood" -> StockType.BLOOD
                 else -> StockType.GEAR
             }
         }
@@ -84,8 +84,10 @@ class StockFragment : Fragment() {
         progressBar = view.findViewById(R.id.progressBar)
         emptyView = view.findViewById(R.id.emptyView)
         headerText = view.findViewById(R.id.headerText)
+        favoriteHintText = view.findViewById(R.id.favoriteHintText)
 
         headerText.text = "${stockType.emoji} ${stockType.displayName}"
+        favoriteHintText.text = "💡 Long press any item to add to favorites!"
 
         swipeRefresh.setOnRefreshListener {
             viewModel.refreshData()
@@ -93,7 +95,9 @@ class StockFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        stockItemAdapter = StockItemAdapter()
+        stockItemAdapter = StockItemAdapter({ item, type ->
+            viewModel.toggleFavorite(item, type)
+        }, stockType)
 
         recyclerView.apply {
             adapter = stockItemAdapter
@@ -106,10 +110,10 @@ class StockFragment : Fragment() {
         val displayMetrics = resources.displayMetrics
         val screenWidthDp = displayMetrics.widthPixels / displayMetrics.density
         return when {
-            screenWidthDp >= 840 -> 4  // Tablet landscape
-            screenWidthDp >= 600 -> 3  // Tablet portrait
-            screenWidthDp >= 480 -> 2  // Large phone landscape
-            else -> 1                  // Phone portrait
+            screenWidthDp >= 840 -> 4
+            screenWidthDp >= 600 -> 3
+            screenWidthDp >= 480 -> 2
+            else -> 1
         }
     }
 
@@ -124,10 +128,12 @@ class StockFragment : Fragment() {
                     if (stocks.isEmpty() && !uiState.isLoading) {
                         emptyView.visibility = View.VISIBLE
                         recyclerView.visibility = View.GONE
+                        favoriteHintText.visibility = View.GONE
                         emptyView.text = "❌ No ${stockType.displayName.lowercase()} available"
                     } else {
                         emptyView.visibility = View.GONE
                         recyclerView.visibility = View.VISIBLE
+                        favoriteHintText.visibility = if (stocks.isNotEmpty()) View.VISIBLE else View.GONE
                         stockItemAdapter.submitList(stocks)
                     }
 
