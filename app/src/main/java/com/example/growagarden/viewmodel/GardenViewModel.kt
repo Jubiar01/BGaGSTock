@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 
 data class UiState(
     val isLoading: Boolean = false,
@@ -26,9 +28,26 @@ class GardenViewModel : ViewModel() {
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private var timerJob: Job? = null
+
     init {
         loadData()
-        calculateResetTimes()
+        startResetTimerUpdates()
+    }
+
+    private fun startResetTimerUpdates() {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (true) {
+                calculateResetTimes()
+                delay(1000L)
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        timerJob?.cancel()
     }
 
     fun loadData() {
@@ -74,10 +93,8 @@ class GardenViewModel : ViewModel() {
     }
 
     fun calculateResetTimes() {
-        viewModelScope.launch {
-            val resetTimes = repository.calculateResetTimes()
-            _uiState.value = _uiState.value.copy(resetTimes = resetTimes)
-        }
+        val resetTimes = repository.calculateResetTimes()
+        _uiState.value = _uiState.value.copy(resetTimes = resetTimes)
     }
 
     fun getStocksByType(type: StockType): List<StockItem> {

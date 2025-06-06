@@ -117,6 +117,10 @@ class GardenRepository {
         val secondsSinceLastReset = totalCurrentSeconds % resetIntervalSeconds
         val secondsUntilNextReset = resetIntervalSeconds - secondsSinceLastReset
 
+        if (secondsUntilNextReset <= 0) {
+            return "⚡ Resetting now!"
+        }
+
         val minutes = secondsUntilNextReset / 60
         val seconds = secondsUntilNextReset % 60
         return "${minutes}m ${seconds}s"
@@ -126,31 +130,34 @@ class GardenRepository {
         val currentMinutes = now.get(Calendar.MINUTE)
         val currentSeconds = now.get(Calendar.SECOND)
 
-        val minutesToNext30 = if (currentMinutes < 30) {
-            30 - currentMinutes
+        val secondsUntilReset = if (currentMinutes < 30) {
+            ((30 - currentMinutes) * 60) - currentSeconds
         } else {
-            60 - currentMinutes
+            ((60 - currentMinutes) * 60) - currentSeconds
         }
 
-        val secondsUntilReset = if (currentSeconds == 0) 0 else 60 - currentSeconds
-        val finalMinutes = if (secondsUntilReset == 0) minutesToNext30 else minutesToNext30 - 1
+        if (secondsUntilReset <= 0) {
+            return "⚡ Resetting now!"
+        }
 
-        return "${finalMinutes}m ${secondsUntilReset}s"
+        val minutes = secondsUntilReset / 60
+        val seconds = secondsUntilReset % 60
+        return "${minutes}m ${seconds}s"
     }
 
     private fun calculateHoneyReset(now: Calendar): String {
         val currentMinutes = now.get(Calendar.MINUTE)
         val currentSeconds = now.get(Calendar.SECOND)
 
-        if (currentMinutes == 0 && currentSeconds == 0) {
+        val secondsUntilReset = ((60 - currentMinutes) * 60) - currentSeconds
+
+        if (secondsUntilReset <= 0 || (currentMinutes == 0 && currentSeconds == 0)) {
             return "⚡ Resetting now!"
         }
 
-        val minutesUntilNextHour = if (currentMinutes == 0 && currentSeconds == 0) 60 else 60 - currentMinutes
-        val secondsLeft = if (currentSeconds == 0) 0 else 60 - currentSeconds
-        val finalMinutes = if (secondsLeft == 0) minutesUntilNextHour else minutesUntilNextHour - 1
-
-        return "${finalMinutes}m ${secondsLeft}s"
+        val minutes = secondsUntilReset / 60
+        val seconds = secondsUntilReset % 60
+        return "${minutes}m ${seconds}s"
     }
 
     private fun calculateCosmeticReset(now: Calendar): String {
@@ -159,12 +166,20 @@ class GardenRepository {
         val currentSeconds = now.get(Calendar.SECOND)
 
         val hoursUntilNext4h = 4 - (currentHours % 4)
-        val minutesLeft = if (currentMinutes == 0) 0 else 60 - currentMinutes
-        val secondsLeft = if (currentSeconds == 0) 0 else 60 - currentSeconds
+        val totalSecondsUntilReset = (hoursUntilNext4h * 3600) - (currentMinutes * 60) - currentSeconds
 
-        val finalHours = if (minutesLeft == 0 && secondsLeft == 0) hoursUntilNext4h else hoursUntilNext4h - 1
-        val finalMinutes = if (secondsLeft == 0) minutesLeft else minutesLeft - 1
+        if (totalSecondsUntilReset <= 0) {
+            return "⚡ Resetting now!"
+        }
 
-        return "${finalHours}h ${finalMinutes}m ${secondsLeft}s"
+        val hours = totalSecondsUntilReset / 3600
+        val minutes = (totalSecondsUntilReset % 3600) / 60
+        val seconds = totalSecondsUntilReset % 60
+
+        return when {
+            hours > 0 -> "${hours}h ${minutes}m ${seconds}s"
+            minutes > 0 -> "${minutes}m ${seconds}s"
+            else -> "${seconds}s"
+        }
     }
 }
