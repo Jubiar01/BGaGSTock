@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Grow A Garden Tracker</string>
+    <string name="all_stocks">All Stocks</string>
+    <string name="gear">Gear</string>
+    <string name="seeds">Seeds</string>
+    <string name="eggs">Eggs</string>
+    <string name="cosmetics">Cosmetics</string>
+    <string name="honey">Honey</string>
+    <string name="night">Night</string>
+    <string name="blood">Blood</string>
+    <string name="weather">Weather</string>
+    <string name="refresh">Refresh</string>
+    <string name="loading">Loading...</string>
+    <string name="retry">Retry</string>
+    <string name="error_loading_data">Error loading data</string>
+    <string name="no_items_available">No items available</string>
+    <string name="current_weather">Current Weather</string>
+    <string name="crop_bonus">Crop Bonus</string>
+    <string name="next_resets">Next Resets</string>
+    <string name="total_items">Total Items</string>
+    <string name="swipe_to_refresh">Swipe to refresh</string>
+</resources>

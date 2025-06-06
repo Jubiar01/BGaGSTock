@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_all_stocks"
+        android:icon="@drawable/ic_all_stocks"
+        android:title="@string/all_stocks" />
+    <item
+        android:id="@+id/nav_gear"
+        android:icon="@drawable/ic_gear"
+        android:title="@string/gear" />
+    <item
+        android:id="@+id/nav_seeds"
+        android:icon="@drawable/ic_seeds"
+        android:title="@string/seeds" />
+    <item
+        android:id="@+id/nav_eggs"
+        android:icon="@drawable/ic_eggs"
+        android:title="@string/eggs" />
+    <item
+        android:id="@+id/nav_cosmetics"
+        android:icon="@drawable/ic_cosmetics"
+        android:title="@string/cosmetics" />
+    <item
+        android:id="@+id/nav_honey"
+        android:icon="@drawable/ic_honey"
+        android:title="@string/honey" />
+    <item
+        android:id="@+id/nav_night"
+        android:icon="@drawable/ic_night"
+        android:title="@string/night" />
+    <item
+        android:id="@+id/nav_blood"
+        android:icon="@drawable/ic_blood"
+        android:title="@string/blood" />
+    <item
+        android:id="@+id/nav_weather"
+        android:icon="@drawable/ic_weather"
+        android:title="@string/weather" />
+</menu>

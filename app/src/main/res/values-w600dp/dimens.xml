@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="fab_margin">24dp</dimen>
+    <dimen name="card_margin">12dp</dimen>
+    <dimen name="card_padding">24dp</dimen>
+    <dimen name="header_padding">32dp</dimen>
+</resources>
