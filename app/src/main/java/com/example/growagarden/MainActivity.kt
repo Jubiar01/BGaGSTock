@@ -18,6 +18,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.example.growagarden.fragments.*
 import com.example.growagarden.viewmodel.GardenViewModel
 import com.example.growagarden.utils.NotificationPermissionHelper
+import com.example.growagarden.utils.ForegroundServicePermissionHelper
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -38,7 +39,7 @@ class MainActivity : AppCompatActivity() {
         setupViewPager()
         setupRefreshButton()
         observeAutoRefreshStatus()
-        requestNotificationPermission()
+        requestAllPermissions()
     }
 
     private fun setupViews() {
@@ -116,9 +117,9 @@ class MainActivity : AppCompatActivity() {
         ).show()
     }
 
-    private fun requestNotificationPermission() {
-        if (!NotificationPermissionHelper.hasNotificationPermission(this)) {
-            NotificationPermissionHelper.requestNotificationPermission(this)
+    private fun requestAllPermissions() {
+        if (!ForegroundServicePermissionHelper.hasAllRequiredPermissions(this)) {
+            ForegroundServicePermissionHelper.requestAllPermissions(this)
         }
     }
 
@@ -131,15 +132,66 @@ class MainActivity : AppCompatActivity() {
 
         when (requestCode) {
             NotificationPermissionHelper.NOTIFICATION_PERMISSION_REQUEST_CODE -> {
-                if (grantResults.isNotEmpty() && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                    NotificationPermissionHelper.showPermissionDeniedDialog(this)
-                } else {
-                    Snackbar.make(
-                        findViewById(android.R.id.content),
-                        "✅ Notifications enabled! You'll get alerts for favorite items.",
-                        Snackbar.LENGTH_LONG
-                    ).show()
+                handleNotificationPermissionResult(grantResults)
+            }
+            ForegroundServicePermissionHelper.FOREGROUND_SERVICE_PERMISSION_REQUEST_CODE -> {
+                handleMultiplePermissionsResult(permissions, grantResults)
+            }
+        }
+    }
+
+    private fun handleNotificationPermissionResult(grantResults: IntArray) {
+        if (grantResults.isNotEmpty() && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+            NotificationPermissionHelper.showPermissionDeniedDialog(this)
+        } else {
+            Snackbar.make(
+                findViewById(android.R.id.content),
+                "✅ Notifications enabled! You'll get alerts for favorite items.",
+                Snackbar.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    private fun handleMultiplePermissionsResult(permissions: Array<out String>, grantResults: IntArray) {
+        var notificationGranted = true
+        var foregroundServiceGranted = true
+
+        permissions.forEachIndexed { index, permission ->
+            val granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
+            when (permission) {
+                android.Manifest.permission.POST_NOTIFICATIONS -> {
+                    notificationGranted = granted
                 }
+                android.Manifest.permission.FOREGROUND_SERVICE -> {
+                    foregroundServiceGranted = granted
+                }
+            }
+        }
+
+        when {
+            notificationGranted && foregroundServiceGranted -> {
+                Snackbar.make(
+                    findViewById(android.R.id.content),
+                    "✅ All permissions granted! Full background monitoring enabled.",
+                    Snackbar.LENGTH_LONG
+                ).show()
+            }
+            notificationGranted && !foregroundServiceGranted -> {
+                Snackbar.make(
+                    findViewById(android.R.id.content),
+                    "⚠️ Notifications enabled, but background monitoring is limited.",
+                    Snackbar.LENGTH_LONG
+                ).show()
+            }
+            !notificationGranted && foregroundServiceGranted -> {
+                Snackbar.make(
+                    findViewById(android.R.id.content),
+                    "⚠️ Background monitoring enabled, but notifications are disabled.",
+                    Snackbar.LENGTH_LONG
+                ).show()
+            }
+            else -> {
+                ForegroundServicePermissionHelper.showPermissionDeniedDialog(this)
             }
         }
     }

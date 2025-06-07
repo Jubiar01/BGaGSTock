@@ -58,9 +58,9 @@ class AutoRefreshService(
             while (isActive) {
                 try {
                     onRefreshNeeded()
-                    delay(30000L)
+                    delay(60000L) // Changed from 30 seconds to 1 minute
                 } catch (e: Exception) {
-                    delay(60000L)
+                    delay(60000L) // Changed from 60 seconds to 1 minute
                 }
             }
         }
@@ -83,17 +83,17 @@ class AutoRefreshService(
     private fun startFastRefresh() {
         fastRefreshJob?.cancel()
         fastRefreshJob = CoroutineScope(Dispatchers.IO).launch {
-            repeat(15) { attempt ->
+            repeat(10) { attempt -> // Reduced from 15 to 10 attempts
                 try {
                     onRefreshNeeded()
                     val delay = when {
-                        attempt < 5 -> 1000L
-                        attempt < 10 -> 2000L
-                        else -> 5000L
+                        attempt < 3 -> 2000L // Changed from 1 second to 2 seconds
+                        attempt < 6 -> 5000L // Changed timing
+                        else -> 10000L // Changed from 5 seconds to 10 seconds
                     }
                     delay(delay)
                 } catch (e: Exception) {
-                    delay(3000L)
+                    delay(5000L)
                 }
             }
         }
@@ -127,13 +127,13 @@ class AutoRefreshService(
             ((60 - currentMinutes) * 60) - currentSeconds
         }
 
-        return minOf(secondsUntilGearReset, secondsUntilEggReset, 30)
+        return minOf(secondsUntilGearReset, secondsUntilEggReset, 60) // Changed from 30 to 60 seconds
     }
 
     fun schedulePreemptiveRefresh() {
         val secondsUntilReset = getSecondsUntilNextReset()
-        if (secondsUntilReset > 5) {
-            scheduleRefreshIn(secondsUntilReset - 3)
+        if (secondsUntilReset > 10) { // Changed from 5 to 10 seconds
+            scheduleRefreshIn(secondsUntilReset - 5) // Keep 5 seconds buffer
         }
     }
 }

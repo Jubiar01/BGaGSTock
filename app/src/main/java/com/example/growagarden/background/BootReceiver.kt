@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.example.growagarden.favorites.FavoritesManager
+import com.example.growagarden.service.ForegroundStockService
 
 class BootReceiver : BroadcastReceiver() {
 
@@ -23,7 +24,11 @@ class BootReceiver : BroadcastReceiver() {
         val favoritesManager = FavoritesManager.getInstance(context)
 
         if (favoritesManager.getFavorites().isNotEmpty()) {
-            BackgroundStockWorker.scheduleWork(context)
+            try {
+                ForegroundStockService.startService(context)
+            } catch (e: Exception) {
+                BackgroundStockWorker.scheduleWork(context)
+            }
         }
     }
 }

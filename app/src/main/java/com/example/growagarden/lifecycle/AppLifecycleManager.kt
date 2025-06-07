@@ -5,6 +5,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.example.growagarden.background.BackgroundStockWorker
+import com.example.growagarden.service.ForegroundStockService
 import com.example.growagarden.favorites.FavoritesManager
 
 class AppLifecycleManager(private val application: Application) : DefaultLifecycleObserver {
@@ -20,9 +21,8 @@ class AppLifecycleManager(private val application: Application) : DefaultLifecyc
         super.onStart(owner)
         isAppInBackground = false
 
-        if (favoritesManager.getFavorites().isNotEmpty()) {
-            BackgroundStockWorker.cancelWork(application)
-        }
+        ForegroundStockService.stopService(application)
+        BackgroundStockWorker.cancelWork(application)
     }
 
     override fun onStop(owner: LifecycleOwner) {
@@ -30,17 +30,24 @@ class AppLifecycleManager(private val application: Application) : DefaultLifecyc
         isAppInBackground = true
 
         if (favoritesManager.getFavorites().isNotEmpty()) {
-            BackgroundStockWorker.scheduleWork(application)
+            ForegroundStockService.startService(application)
         }
     }
 
     fun isInBackground(): Boolean = isAppInBackground
 
     fun onFavoritesChanged() {
-        if (isAppInBackground && favoritesManager.getFavorites().isNotEmpty()) {
-            BackgroundStockWorker.scheduleWork(application)
-        } else if (favoritesManager.getFavorites().isEmpty()) {
-            BackgroundStockWorker.cancelWork(application)
+        if (isAppInBackground) {
+            if (favoritesManager.getFavorites().isNotEmpty()) {
+                ForegroundStockService.startService(application)
+            } else {
+                ForegroundStockService.stopService(application)
+            }
         }
+    }
+
+    fun stopAllServices() {
+        ForegroundStockService.stopService(application)
+        BackgroundStockWorker.cancelWork(application)
     }
 }
